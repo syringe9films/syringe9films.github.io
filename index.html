@@ -305,6 +305,25 @@
   .aucsum{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--dim);margin-bottom:9px}
   .aucacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 
+  .connrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .rdr{display:block;margin-top:6px}
+  .rdr code{font-size:11px;padding:2px 5px;border-radius:4px;cursor:pointer;
+    background:hsl(var(--h) var(--s) 16%);border:1px solid hsl(var(--h) var(--s) 24%)}
+  .connnote{font-size:12px;color:var(--dim);line-height:1.5;margin-top:9px}
+  .connnote:empty{display:none}
+  .connnote b{color:var(--muted);font-weight:400}
+  #connstate.live{color:var(--gold2)}
+  .queue{margin-bottom:12px}
+  .queue:empty{display:none}
+  .qh{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--dim);margin-bottom:8px}
+  .qrow{border:1px solid var(--edge2);background:var(--bg2);padding:10px 12px;margin-bottom:7px}
+  .qtop{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .qwho{font-size:12px;color:var(--dim)}
+  .qsum{font-variant-numeric:tabular-nums;font-weight:700;color:var(--gold);margin-left:auto}
+  .qtext{font-family:var(--serif);font-size:16px;margin:5px 0 8px;word-break:break-word}
+  .qacts{display:flex;gap:6px;flex-wrap:wrap}
+  .qacts .chip{font-size:12px}
+  .qacts .chip.ok{border-color:var(--edge3);color:var(--gold2)}
   /* --- проверка честности --- */
   .fair{margin-bottom:12px;padding:13px 15px;border:1px solid var(--edge);background:var(--bg2)}
   .fair:empty{display:none}
@@ -525,6 +544,17 @@
           </div>
         </div>
 
+        <div class="box" id="connbox">
+          <div class="bxh">Подключения<b id="connstate">не подключено</b></div>
+          <div class="connrow">
+            <button class="btn ghost" id="tw-connect" type="button">Подключить Twitch</button>
+            <label class="chip toggle" title="Сколько единиц ставки даёт один балл канала">
+              курс <input type="text" id="tw-rate" inputmode="decimal" class="mini"> за балл
+            </label>
+          </div>
+          <div class="connnote" id="connnote"></div>
+        </div>
+        <div class="queue" id="queue"></div>
         <div class="fair" id="fair"></div>
         <div class="hist2" id="aucHistory"></div>
       </div>
@@ -611,7 +641,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 17 · 01.11</span>
+    <span class="build" id="build">сборка 18 · 06.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
@@ -780,8 +810,8 @@
   /* ============================================================
      НАСТРОЙКА — заполните три строки ниже (см. SETUP.md)
      ============================================================ */
-  var SUPABASE_URL = "https://qpgnsnlfhuttghejoery.supabase.co";          // https://xxxxxxxx.supabase.co
-  var SUPABASE_KEY = "sb_publishable_B7Y0znt949hmxjuEDgwj0w_mEkYg4r8";          // publishable / anon ключ
+  var SUPABASE_URL = "https://qpgnsnlfhuttghejoery.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_B7Y0znt949hmxjuEDgwj0w_mEkYg4r8";
   var PAGE_TITLE   = "Syringe9";
   /* ============================================================ */
 
@@ -1172,7 +1202,7 @@
   var history=[], segs=[], pool=null, roundNo=0, plan=null, duel=null;
   var cfg={dur:8,rndTime:false,durMin:5,durMax:15,format:'normal',dropout:'simulation',
            splitLevel:0,minBid:1,tDur:600,tAdd:0,tThreshold:1,tAutoStart:false,
-           showPct:true,sortMode:'sum',sound:true,showFair:false};
+           showPct:true,sortMode:'sum',sound:true,showFair:false,twRate:1};
   var timer={left:0,running:false,tick:null};
 
   function rnd(){
@@ -1655,7 +1685,7 @@
   /* состав изменился: прошлое раскрытие больше не актуально, нужен новый отпечаток */
   function lotsChanged(){
     revealed=null;
-    aucSave();renderLots();
+    aucSave();renderLots();renderQueue();
     refreshCommit().then(ensurePlan);
   }
 
@@ -1770,6 +1800,7 @@
     if(r===-3){aucErr('Ставка должна быть больше нуля.','sum');return}
     if(r===-1){aucErr('Минимальная ставка — '+money(cfg.minBid)+'.','sum');return}
     aucErr('');
+    if(pendingQueue){queue=queue.filter(function(x){return x.id!==pendingQueue});pendingQueue=null;qSave();renderQueue()}
     this.reset();renderTimer();lotsChanged();$('#a-title').focus();
   });
   /* докинуть к ставке: берём число из поля рядом с кнопкой */
@@ -1828,6 +1859,226 @@
     $('#p-err').textContent='';$('#p-text').value='';
     renderTimer();lotsChanged();close('m-paste');
   });
+  /* ===== Twitch: награды за баллы канала =====
+     Всё работает прямо в браузере: вход по implicit-схеме, события приходят
+     по веб-сокету EventSub. Сервер не нужен, но страница должна быть открыта. */
+  var TW_CLIENT='10a2vroh9p77nc7hdl8dcepxso26mx';
+  /* Адрес возврата должен совпасть с тем, что вписан в приложении Twitch,
+     посимвольно. Поэтому берём его из самой страницы и показываем для копирования. */
+  function twRedirect(){
+    if(location.protocol!=='http:'&&location.protocol!=='https:')
+      return 'https://syringe9films.github.io/';
+    var o=location.origin, p=location.pathname.replace(/index\.html?$/i,'');
+    if(!o||o==='null')return 'https://syringe9films.github.io/';
+    return o+p;
+  }
+  var tw={token:null,user:null,ws:null,session:null,sub:null,alive:false,retry:0};
+  var queue=[];
+
+  function twSave(){
+    try{ls('kino-tw',JSON.stringify({token:tw.token,user:tw.user}))}catch(e){}
+  }
+  function twLoad(){
+    try{
+      var v=JSON.parse(ls('kino-tw')||'null');
+      if(v&&v.token){tw.token=v.token;tw.user=v.user||null}
+    }catch(e){}
+  }
+  function qSave(){try{ls('kino-queue',JSON.stringify(queue.slice(0,40)))}catch(e){}}
+  function qLoad(){
+    try{var v=JSON.parse(ls('kino-queue')||'[]');if(Array.isArray(v))queue=v}catch(e){queue=[]}
+  }
+
+  function twApi(path){
+    return fetch('https://api.twitch.tv/helix'+path,{
+      headers:{'Client-Id':TW_CLIENT,'Authorization':'Bearer '+tw.token}
+    }).then(function(r){
+      if(r.status===401){twLogout(true);throw new Error('Twitch: нужно войти заново')}
+      return r.json();
+    });
+  }
+  function twLogin(){
+    var url='https://id.twitch.tv/oauth2/authorize'+
+      '?client_id='+encodeURIComponent(TW_CLIENT)+
+      '&redirect_uri='+encodeURIComponent(twRedirect())+
+      '&response_type=token'+
+      '&scope='+encodeURIComponent('channel:read:redemptions')+
+      '&force_verify=true';
+    location.href=url;
+  }
+  function twLogout(silent){
+    try{if(tw.ws)tw.ws.close()}catch(e){}
+    tw={token:null,user:null,ws:null,session:null,sub:null,alive:false,retry:0};
+    try{ls('kino-tw',null)}catch(e){}
+    renderConn(silent?'':'Twitch отключён');
+  }
+  /* токен возвращается в адресной строке после входа */
+  function twCatchToken(){
+    if(!location.hash||location.hash.indexOf('access_token=')<0)return false;
+    var p={};
+    location.hash.replace(/^#/,'').split('&').forEach(function(kv){
+      var i=kv.indexOf('='); if(i>0)p[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1));
+    });
+    if(!p.access_token)return false;
+    tw.token=p.access_token;twSave();
+    try{window.history.replaceState(null,'',location.pathname+location.search)}catch(e){location.hash=''}
+    return true;
+  }
+  function twStart(){
+    if(!tw.token)return Promise.resolve();
+    return twApi('/users').then(function(j){
+      if(!j||!j.data||!j.data[0])throw new Error('Twitch не вернул пользователя');
+      tw.user={id:j.data[0].id,name:j.data[0].display_name||j.data[0].login};
+      twSave();renderConn();
+      twSocket();
+    }).catch(function(e){renderConn(e.message||'Не удалось подключиться')});
+  }
+  function twSocket(){
+    if(!tw.token||!tw.user)return;
+    if(!window.WebSocket){renderConn('Этот браузер слишком старый для живой связи с Twitch — откройте сайт в Chrome или Firefox');return}
+    try{if(tw.ws)tw.ws.close()}catch(e){}
+    var ws=new WebSocket('wss://eventsub.wss.twitch.tv/ws');
+    tw.ws=ws;
+    ws.onmessage=function(ev){
+      var m=null;try{m=JSON.parse(ev.data)}catch(e){return}
+      var type=m&&m.metadata&&m.metadata.message_type;
+      if(type==='session_welcome'){
+        tw.session=m.payload.session.id;tw.retry=0;
+        twSubscribe();
+      }else if(type==='notification'){
+        var sub=m.metadata.subscription_type;
+        if(sub==='channel.channel_points_custom_reward_redemption.add')
+          onRedemption(m.payload.event);
+      }else if(type==='session_reconnect'){
+        var u=m.payload.session.reconnect_url;
+        try{ws.close()}catch(e){}
+        tw.ws=new WebSocket(u);tw.ws.onmessage=ws.onmessage;tw.ws.onclose=ws.onclose;
+      }else if(type==='revocation'){
+        tw.alive=false;renderConn('Twitch отозвал доступ — подключите заново');
+      }
+    };
+    ws.onclose=function(){
+      tw.alive=false;renderConn();
+      if(!tw.token)return;
+      tw.retry=Math.min(6,tw.retry+1);
+      setTimeout(twSocket,Math.min(30000,1000*Math.pow(2,tw.retry)));
+    };
+    ws.onerror=function(){tw.alive=false;renderConn()};
+  }
+  function twSubscribe(){
+    fetch('https://api.twitch.tv/helix/eventsub/subscriptions',{
+      method:'POST',
+      headers:{'Client-Id':TW_CLIENT,'Authorization':'Bearer '+tw.token,'Content-Type':'application/json'},
+      body:JSON.stringify({
+        type:'channel.channel_points_custom_reward_redemption.add',
+        version:'1',
+        condition:{broadcaster_user_id:tw.user.id},
+        transport:{method:'websocket',session_id:tw.session}
+      })
+    }).then(function(r){return r.json().then(function(j){return {ok:r.ok,status:r.status,j:j}})})
+      .then(function(res){
+        if(res.ok){tw.alive=true;renderConn()}
+        else if(res.status===403)renderConn('Twitch: у этого аккаунта нет баллов канала — нужен аккаунт стримера с партнёрством или аффилиатом');
+        else renderConn('Twitch: '+((res.j&&res.j.message)||('ошибка '+res.status)));
+      }).catch(function(e){renderConn('Twitch: '+(e.message||'не удалось подписаться'))});
+  }
+
+  /* награда потрачена — превращаем в ставку */
+  function onRedemption(e){
+    var text=(e.user_input||'').trim();
+    var cost=Math.round((+e.reward.cost||0)*(parseFloat(cfg.twRate)||1));
+    var who=e.user_name||e.user_login||'зритель';
+    if(!cost)return;
+    var exact=null, k=norm(text);
+    if(text)for(var i=0;i<lots.length;i++)if(norm(lots[i].title)===k){exact=lots[i];break}
+    if(exact){
+      exact.sum+=cost;
+      if(timer.running&&cost>=cfg.tThreshold&&cfg.tAdd>0){timer.left+=cfg.tAdd;renderTimer()}
+      resetRound();lotsChanged();
+      flash(who+' → '+exact.title+' (+'+money(cost)+')');
+    }else{
+      queue.unshift({id:uid(),who:who,text:text,sum:cost,at:Date.now(),
+                     reward:(e.reward&&e.reward.title)||''});
+      queue=queue.slice(0,40);qSave();renderQueue();
+      flash(who+' → заявка «'+(text||e.reward.title||'без текста')+'»');
+    }
+  }
+  function flash(msg){
+    var n=$('#connnote');
+    if(!n)return;
+    n.innerHTML='<b>'+esc(msg)+'</b>';
+    clearTimeout(flash.t);
+    flash.t=setTimeout(function(){renderConn()},6000);
+  }
+  function renderConn(msg){
+    var s=$('#connstate'), n=$('#connnote'), b=$('#tw-connect');
+    if(!s)return;
+    var on=!!(tw.token&&tw.user&&tw.alive);
+    s.textContent=on?('Twitch · '+tw.user.name):(tw.token?'подключение…':'не подключено');
+    s.classList.toggle('live',on);
+    b.textContent=tw.token?'Отключить Twitch':'Подключить Twitch';
+    if(msg)n.textContent=msg;
+    else if(on)n.innerHTML='Награды за баллы канала падают сюда автоматически. '+
+      'Страница должна быть открыта — закроете вкладку, ставки перестанут приходить.';
+    else if(tw.token)n.textContent='Устанавливаю связь с Twitch…';
+    else n.innerHTML='Войдите аккаунтом канала, где идут аукционы. '+
+      'На канале нужна награда за баллы с включённым вводом текста — зритель пишет в ней название лота.'+
+      '<span class="rdr">В приложении Twitch в поле OAuth Redirect URL должно стоять ровно это: '+
+      '<code id="tw-rdr">'+esc(twRedirect())+'</code></span>';
+    var rc=$('#tw-rdr');
+    if(rc){
+      rc.title='Нажмите, чтобы скопировать';
+      rc.addEventListener('click',function(){copy(rc.textContent,rc,'скопировано')});
+    }
+    if($('#tw-rate')&&document.activeElement!==$('#tw-rate'))$('#tw-rate').value=cfg.twRate||1;
+  }
+  function renderQueue(){
+    var q=$('#queue');
+    if(!q)return;
+    if(!queue.length){q.innerHTML='';return}
+    q.innerHTML='<div class="qh">Заявки · '+queue.length+'</div>'+queue.map(function(r){
+      var t=new Date(r.at), time=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+      return '<div class="qrow" data-q="'+r.id+'">'+
+        '<div class="qtop"><span class="qwho">'+esc(r.who)+' · '+time+'</span>'+
+          '<span class="qsum">'+money(r.sum)+'</span></div>'+
+        '<div class="qtext">'+esc(r.text||'(без текста)')+'</div>'+
+        '<div class="qacts">'+
+          '<button class="chip ok" data-qnew="'+r.id+'">Создать лот</button>'+
+          (lots.length?'<button class="chip" data-qto="'+r.id+'">В существующий…</button>':'')+
+          '<button class="chip" data-qdel="'+r.id+'">Отклонить</button>'+
+        '</div></div>';
+    }).join('');
+  }
+  $('#queue').addEventListener('click',function(e){
+    var mk=e.target.closest('[data-qnew]'), to=e.target.closest('[data-qto]'), del=e.target.closest('[data-qdel]');
+    var id=mk?mk.dataset.qnew:to?to.dataset.qto:del?del.dataset.qdel:null;
+    if(!id)return;
+    var r=queue.filter(function(x){return x.id===id})[0];
+    if(!r)return;
+    if(del){queue=queue.filter(function(x){return x.id!==id});qSave();renderQueue();return}
+    if(mk){
+      if(lotAdd(r.text||('Заявка от '+r.who), r.sum)===1){
+        queue=queue.filter(function(x){return x.id!==id});qSave();renderQueue();lotsChanged();
+      }
+      return;
+    }
+    if(to){
+      $('#a-title').value='';$('#a-sum').value=r.sum;
+      $('#a-title').focus();
+      aucErr('Впишите название лота — сумма '+money(r.sum)+' уже подставлена, после добавления заявка закроется.');
+      pendingQueue=id;
+    }
+  });
+  var pendingQueue=null;
+
+  $('#tw-connect').addEventListener('click',function(){
+    if(tw.token)twLogout();else twLogin();
+  });
+  $('#tw-rate').addEventListener('input',function(){
+    var v=parseFloat(this.value.replace(',','.'));
+    if(!isNaN(v)&&v>0){cfg.twRate=v;aucSave()}
+  });
+
   /* --- панель управления колесом --- */
   function wheelPanel(){
     $('#s-dur').value=cfg.rndTime?(cfg.durMin+'-'+cfg.durMax):cfg.dur;
@@ -2187,7 +2438,13 @@
   /* Аукцион поднимаем отдельно и под защитой: если в нём что-то сломается
      на чьём-то браузере, список фильмов всё равно должен загрузиться. */
   try{
-    aucLoad();
+    aucLoad();qLoad();twLoad();
+    var twJustLoggedIn=twCatchToken();
+    renderConn();renderQueue();
+    if(tw.token)twStart();
+    if(twJustLoggedIn&&!document.body.classList.contains('auc-view')){
+      document.body.classList.add('auc-view');$('#viewtoggle').textContent='Films';
+    }
     if(cfg.minBid>1)$('#a-sum').placeholder='от '+cfg.minBid;
     toolsRender();wheelPanel();renderTimer();renderLots();showResult(lastResult,false);
     refreshCommit().then(ensurePlan).catch(function(){});
