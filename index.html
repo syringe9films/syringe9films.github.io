@@ -306,9 +306,6 @@
   .aucacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 
   .connrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .rdr{display:block;margin-top:6px}
-  .rdr code{font-size:11px;padding:2px 5px;border-radius:4px;cursor:pointer;
-    background:hsl(var(--h) var(--s) 16%);border:1px solid hsl(var(--h) var(--s) 24%)}
   .connnote{font-size:12px;color:var(--dim);line-height:1.5;margin-top:9px}
   .connnote:empty{display:none}
   .connnote b{color:var(--muted);font-weight:400}
@@ -641,7 +638,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 18 · 06.11</span>
+    <span class="build" id="build">сборка 19 · 06.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
@@ -2022,14 +2019,7 @@
       'Страница должна быть открыта — закроете вкладку, ставки перестанут приходить.';
     else if(tw.token)n.textContent='Устанавливаю связь с Twitch…';
     else n.innerHTML='Войдите аккаунтом канала, где идут аукционы. '+
-      'На канале нужна награда за баллы с включённым вводом текста — зритель пишет в ней название лота.'+
-      '<span class="rdr">В приложении Twitch в поле OAuth Redirect URL должно стоять ровно это: '+
-      '<code id="tw-rdr">'+esc(twRedirect())+'</code></span>';
-    var rc=$('#tw-rdr');
-    if(rc){
-      rc.title='Нажмите, чтобы скопировать';
-      rc.addEventListener('click',function(){copy(rc.textContent,rc,'скопировано')});
-    }
+      'На канале нужна награда за баллы с включённым вводом текста — зритель пишет в ней название лота.';
     if($('#tw-rate')&&document.activeElement!==$('#tw-rate'))$('#tw-rate').value=cfg.twRate||1;
   }
   function renderQueue(){
