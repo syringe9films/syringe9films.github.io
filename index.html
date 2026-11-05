@@ -305,7 +305,10 @@
   .aucsum{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--dim);margin-bottom:9px}
   .aucacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 
-  .connrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .connrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:7px}
+  .connrow:last-of-type{margin-bottom:0}
+  .connst{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);font-weight:400}
+  .connst.live{color:var(--gold)}
   .connnote{font-size:12px;color:var(--dim);line-height:1.5;margin-top:9px}
   .connnote:empty{display:none}
   .connnote b{color:var(--muted);font-weight:400}
@@ -542,11 +545,19 @@
         </div>
 
         <div class="box" id="connbox">
-          <div class="bxh">Подключения<b id="connstate">не подключено</b></div>
+          <div class="bxh">Подключения</div>
           <div class="connrow">
             <button class="btn ghost" id="tw-connect" type="button">Подключить Twitch</button>
+            <b class="connst" id="tw-state">не подключено</b>
             <label class="chip toggle" title="Сколько единиц ставки даёт один балл канала">
               курс <input type="text" id="tw-rate" inputmode="decimal" class="mini"> за балл
+            </label>
+          </div>
+          <div class="connrow">
+            <button class="btn ghost" id="da-connect" type="button">Подключить DonationAlerts</button>
+            <b class="connst" id="da-state">не подключено</b>
+            <label class="chip toggle" title="Сколько единиц ставки даёт один рубль доната">
+              курс <input type="text" id="da-rate" inputmode="decimal" class="mini"> за рубль
             </label>
           </div>
           <div class="connnote" id="connnote"></div>
@@ -638,7 +649,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 19 · 06.11</span>
+    <span class="build" id="build">сборка 20 · 06.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
@@ -1199,7 +1210,7 @@
   var history=[], segs=[], pool=null, roundNo=0, plan=null, duel=null;
   var cfg={dur:8,rndTime:false,durMin:5,durMax:15,format:'normal',dropout:'simulation',
            splitLevel:0,minBid:1,tDur:600,tAdd:0,tThreshold:1,tAutoStart:false,
-           showPct:true,sortMode:'sum',sound:true,showFair:false,twRate:1};
+           showPct:true,sortMode:'sum',sound:true,showFair:false,twRate:1,daRate:1};
   var timer={left:0,running:false,tick:null};
 
   function rnd(){
@@ -1862,7 +1873,7 @@
   var TW_CLIENT='10a2vroh9p77nc7hdl8dcepxso26mx';
   /* Адрес возврата должен совпасть с тем, что вписан в приложении Twitch,
      посимвольно. Поэтому берём его из самой страницы и показываем для копирования. */
-  function twRedirect(){
+  function siteRedirect(){
     if(location.protocol!=='http:'&&location.protocol!=='https:')
       return 'https://syringe9films.github.io/';
     var o=location.origin, p=location.pathname.replace(/index\.html?$/i,'');
@@ -1895,9 +1906,10 @@
     });
   }
   function twLogin(){
+    try{ls('kino-oauth','tw')}catch(e){}
     var url='https://id.twitch.tv/oauth2/authorize'+
       '?client_id='+encodeURIComponent(TW_CLIENT)+
-      '&redirect_uri='+encodeURIComponent(twRedirect())+
+      '&redirect_uri='+encodeURIComponent(siteRedirect())+
       '&response_type=token'+
       '&scope='+encodeURIComponent('channel:read:redemptions')+
       '&force_verify=true';
@@ -1909,17 +1921,24 @@
     try{ls('kino-tw',null)}catch(e){}
     renderConn(silent?'':'Twitch отключён');
   }
-  /* токен возвращается в адресной строке после входа */
-  function twCatchToken(){
-    if(!location.hash||location.hash.indexOf('access_token=')<0)return false;
+  /* Токен возвращается в адресной строке после входа. Twitch и DA делают это
+     одинаково, поэтому перед уходом мы помечаем, к кому идём, и по возвращении
+     смотрим метку — иначе чужой токен попал бы не в ту службу. */
+  function catchOAuth(){
+    if(!location.hash||location.hash.indexOf('access_token=')<0)return null;
     var p={};
     location.hash.replace(/^#/,'').split('&').forEach(function(kv){
       var i=kv.indexOf('='); if(i>0)p[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1));
     });
-    if(!p.access_token)return false;
-    tw.token=p.access_token;twSave();
+    var who=null;
+    try{who=ls('kino-oauth')}catch(e){}
+    try{ls('kino-oauth',null)}catch(e){}
     try{window.history.replaceState(null,'',location.pathname+location.search)}catch(e){location.hash=''}
-    return true;
+    if(!p.access_token)return null;
+    /* если метка потерялась — узнаём по набору прав: у DA они начинаются с oauth- */
+    if(who!=='tw'&&who!=='da')who=(p.scope&&p.scope.indexOf('oauth-')>=0)?'da':'tw';
+    if(who==='da'){da.token=p.access_token;daSave();return 'da'}
+    tw.token=p.access_token;twSave();return 'tw';
   }
   function twStart(){
     if(!tw.token)return Promise.resolve();
@@ -1980,25 +1999,30 @@
       }).catch(function(e){renderConn('Twitch: '+(e.message||'не удалось подписаться'))});
   }
 
-  /* награда потрачена — превращаем в ставку */
-  function onRedemption(e){
-    var text=(e.user_input||'').trim();
-    var cost=Math.round((+e.reward.cost||0)*(parseFloat(cfg.twRate)||1));
-    var who=e.user_name||e.user_login||'зритель';
-    if(!cost)return;
+  /* Общее для Twitch и DA: точное совпадение названия — сумма сразу идёт
+     в лот, всё прочее ждёт решения в заявках, чтобы опечатки не плодили
+     лоты-двойники. */
+  function addBid(who,text,cost,src){
     var exact=null, k=norm(text);
     if(text)for(var i=0;i<lots.length;i++)if(norm(lots[i].title)===k){exact=lots[i];break}
     if(exact){
       exact.sum+=cost;
       if(timer.running&&cost>=cfg.tThreshold&&cfg.tAdd>0){timer.left+=cfg.tAdd;renderTimer()}
       resetRound();lotsChanged();
-      flash(who+' → '+exact.title+' (+'+money(cost)+')');
+      flash(who+' \u2192 '+exact.title+' (+'+money(cost)+')');
     }else{
-      queue.unshift({id:uid(),who:who,text:text,sum:cost,at:Date.now(),
-                     reward:(e.reward&&e.reward.title)||''});
+      queue.unshift({id:uid(),who:who,text:text,sum:cost,at:Date.now(),reward:src||''});
       queue=queue.slice(0,40);qSave();renderQueue();
-      flash(who+' → заявка «'+(text||e.reward.title||'без текста')+'»');
+      flash(who+' \u2192 \u0437\u0430\u044f\u0432\u043a\u0430 \u00ab'+(text||src||'\u0431\u0435\u0437 \u0442\u0435\u043a\u0441\u0442\u0430')+'\u00bb');
     }
+  }
+  /* награда за баллы потрачена */
+  function onRedemption(e){
+    var text=(e.user_input||'').trim();
+    var cost=Math.round((+e.reward.cost||0)*(parseFloat(cfg.twRate)||1));
+    var who=e.user_name||e.user_login||'\u0437\u0440\u0438\u0442\u0435\u043b\u044c';
+    if(!cost)return;
+    addBid(who,text,cost,(e.reward&&e.reward.title)||'');
   }
   function flash(msg){
     var n=$('#connnote');
@@ -2008,19 +2032,30 @@
     flash.t=setTimeout(function(){renderConn()},6000);
   }
   function renderConn(msg){
-    var s=$('#connstate'), n=$('#connnote'), b=$('#tw-connect');
-    if(!s)return;
-    var on=!!(tw.token&&tw.user&&tw.alive);
-    s.textContent=on?('Twitch · '+tw.user.name):(tw.token?'подключение…':'не подключено');
-    s.classList.toggle('live',on);
-    b.textContent=tw.token?'Отключить Twitch':'Подключить Twitch';
+    var n=$('#connnote');
+    if(!n)return;
+    var ts=$('#tw-state'), tb=$('#tw-connect');
+    var ds=$('#da-state'), db=$('#da-connect');
+    var twOn=!!(tw.token&&tw.user&&tw.alive);
+    var daOn=!!(da.token&&da.user&&da.alive);
+    if(ts){
+      ts.textContent=twOn?('Twitch \u00b7 '+tw.user.name):(tw.token?'\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435\u2026':'\u043d\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u043e');
+      ts.classList.toggle('live',twOn);
+    }
+    if(tb)tb.textContent=tw.token?'\u041e\u0442\u043a\u043b\u044e\u0447\u0438\u0442\u044c Twitch':'\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c Twitch';
+    if(ds){
+      ds.textContent=daOn?('DA \u00b7 '+da.user.name):(da.token?'\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435\u2026':'\u043d\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u043e');
+      ds.classList.toggle('live',daOn);
+    }
+    if(db)db.textContent=da.token?'\u041e\u0442\u043a\u043b\u044e\u0447\u0438\u0442\u044c DonationAlerts':'\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c DonationAlerts';
     if(msg)n.textContent=msg;
-    else if(on)n.innerHTML='Награды за баллы канала падают сюда автоматически. '+
-      'Страница должна быть открыта — закроете вкладку, ставки перестанут приходить.';
-    else if(tw.token)n.textContent='Устанавливаю связь с Twitch…';
-    else n.innerHTML='Войдите аккаунтом канала, где идут аукционы. '+
-      'На канале нужна награда за баллы с включённым вводом текста — зритель пишет в ней название лота.';
+    else if(twOn||daOn)n.innerHTML='\u0421\u0442\u0430\u0432\u043a\u0438 \u043f\u0440\u0438\u0445\u043e\u0434\u044f\u0442 \u0441\u044e\u0434\u0430 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438. '+
+      '\u0421\u0442\u0440\u0430\u043d\u0438\u0446\u0430 \u0434\u043e\u043b\u0436\u043d\u0430 \u0431\u044b\u0442\u044c \u043e\u0442\u043a\u0440\u044b\u0442\u0430 \u2014 \u0437\u0430\u043a\u0440\u043e\u0435\u0442\u0435 \u0432\u043a\u043b\u0430\u0434\u043a\u0443, \u0441\u0432\u044f\u0437\u044c \u043e\u0431\u043e\u0440\u0432\u0451\u0442\u0441\u044f.';
+    else if(tw.token||da.token)n.textContent='\u0423\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e \u0441\u0432\u044f\u0437\u044c\u2026';
+    else n.innerHTML='Twitch \u2014 \u043d\u0430\u0433\u0440\u0430\u0434\u044b \u0437\u0430 \u0431\u0430\u043b\u043b\u044b \u043a\u0430\u043d\u0430\u043b\u0430: \u043d\u0443\u0436\u043d\u0430 \u043d\u0430\u0433\u0440\u0430\u0434\u0430 \u0441 \u0432\u043a\u043b\u044e\u0447\u0451\u043d\u043d\u044b\u043c \u0432\u0432\u043e\u0434\u043e\u043c \u0442\u0435\u043a\u0441\u0442\u0430. '+
+      'DonationAlerts \u2014 \u0434\u043e\u043d\u0430\u0442\u044b: \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043b\u043e\u0442\u0430 \u0437\u0440\u0438\u0442\u0435\u043b\u044c \u043f\u0438\u0448\u0435\u0442 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0438 \u043a \u0434\u043e\u043d\u0430\u0442\u0443.';
     if($('#tw-rate')&&document.activeElement!==$('#tw-rate'))$('#tw-rate').value=cfg.twRate||1;
+    if($('#da-rate')&&document.activeElement!==$('#da-rate'))$('#da-rate').value=cfg.daRate||1;
   }
   function renderQueue(){
     var q=$('#queue');
@@ -2067,6 +2102,176 @@
   $('#tw-rate').addEventListener('input',function(){
     var v=parseFloat(this.value.replace(',','.'));
     if(!isNaN(v)&&v>0){cfg.twRate=v;aucSave()}
+  });
+
+  /* ===== DonationAlerts: донаты как ставки =====
+     DA не разрешает браузеру обращаться к своему API со стороннего сайта,
+     поэтому два запроса идут через нашу функцию в Supabase: узнать, кто вошёл,
+     и подписать канал. Сами донаты приходят напрямую по веб-сокету Centrifugo. */
+  var DA_CLIENT='22757';
+  var DA_WS='wss://centrifugo.donationalerts.com/connection/websocket';
+  var da={token:null,user:null,sock:null,ws:null,alive:false,retry:0,msgId:0,channel:null};
+  var daSeenIds=[];
+
+  function daProxyUrl(){return (SUPABASE_URL||'')+'/functions/v1/da-proxy'}
+  function daSave(){
+    try{ls('kino-da',JSON.stringify({token:da.token,user:da.user}))}catch(e){}
+  }
+  function daLoad(){
+    try{
+      var v=JSON.parse(ls('kino-da')||'null');
+      if(v&&v.token){da.token=v.token;da.user=v.user||null}
+    }catch(e){}
+    try{var s=JSON.parse(ls('kino-da-seen')||'[]');if(Array.isArray(s))daSeenIds=s}catch(e){}
+  }
+  /* один и тот же донат может прийти дважды — второй раз пропускаем */
+  function daSeen(id){
+    id=String(id);
+    if(daSeenIds.indexOf(id)>=0)return true;
+    daSeenIds.unshift(id);daSeenIds=daSeenIds.slice(0,200);
+    try{ls('kino-da-seen',JSON.stringify(daSeenIds))}catch(e){}
+    return false;
+  }
+  function daProxy(body){
+    if(!da.token)return Promise.reject(new Error('нет токена DonationAlerts'));
+    return fetch(daProxyUrl(),{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-da-token':da.token,
+               'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY},
+      body:JSON.stringify(body)
+    }).then(function(r){
+      return r.json().catch(function(){return {}}).then(function(j){
+        if(r.ok)return j;
+        var raw=(j&&(j.error||j.message))||'';
+        var msg=raw||('посредник ответил '+r.status);
+        /* j.error ставит наша же функция — значит, ответ пришёл от неё,
+           а не от Supabase, и причину она назвала сама */
+        if(!(j&&j.error)){
+          if(r.status===404)
+            msg='функция da-proxy не найдена — проверьте её имя в Supabase';
+          else if(r.status===401||r.status===403){
+            msg=/jwt|apikey|api key|authoriz/i.test(raw)
+              ? 'посредник не принял ключ сайта — выключите Verify JWT в настройках функции da-proxy'
+              : 'нужно войти в DonationAlerts заново';
+          }
+        }
+        throw new Error(msg);
+      });
+    });
+  }
+  function daLogin(){
+    if(!DA_CLIENT){renderConn('В сайт не вписан Client ID приложения DonationAlerts');return}
+    try{ls('kino-oauth','da')}catch(e){}
+    location.href='https://www.donationalerts.com/oauth/authorize'+
+      '?client_id='+encodeURIComponent(DA_CLIENT)+
+      '&redirect_uri='+encodeURIComponent(siteRedirect())+
+      '&response_type=token'+
+      '&scope='+encodeURIComponent('oauth-user-show oauth-donation-subscribe');
+  }
+  function daLogout(silent){
+    try{if(da.ws)da.ws.close()}catch(e){}
+    da={token:null,user:null,sock:null,ws:null,alive:false,retry:0,msgId:0,channel:null};
+    try{ls('kino-da',null)}catch(e){}
+    renderConn(silent?'':'DonationAlerts отключён');
+  }
+  function daStart(){
+    if(!da.token)return Promise.resolve();
+    return daProxy({action:'user'}).then(function(j){
+      var d=j&&j.data;
+      if(!d||!d.id)throw new Error('DonationAlerts не вернул пользователя');
+      da.user={id:String(d.id),name:d.name||d.code||'канал'};
+      da.sock=d.socket_connection_token||null;
+      if(!da.sock)throw new Error('DonationAlerts не выдал ключ для связи');
+      daSave();renderConn();
+      daSocket();
+    }).catch(function(e){
+      da.alive=false;
+      renderConn('DonationAlerts: '+(e.message||'не удалось подключиться'));
+    });
+  }
+  function daSocket(){
+    if(!da.token||!da.user||!da.sock)return;
+    if(!window.WebSocket){renderConn('Этот браузер слишком старый для живой связи с DonationAlerts');return}
+    try{if(da.ws)da.ws.close()}catch(e){}
+    var ws=new WebSocket(DA_WS), waiting={}, closed=false;
+    da.ws=ws;da.msgId=0;da.channel='$alerts:donation_'+da.user.id;
+
+    /* Centrifugo отвечает на запрос с тем же номером; на подписку иногда
+       приходит ответ без номера, поэтому у неё есть ещё и опознаватель. */
+    function ask(msg,match){
+      return new Promise(function(res,rej){
+        var id=++da.msgId, rec={res:res,rej:rej,match:match};
+        waiting[id]=rec;
+        rec.t=setTimeout(function(){
+          delete waiting[id];rej(new Error('DonationAlerts не ответил'));
+        },12000);
+        try{ws.send(JSON.stringify({id:id,method:msg.method,params:msg.params}))}
+        catch(e){clearTimeout(rec.t);delete waiting[id];rej(e)}
+      });
+    }
+    function settle(rec,key,m){
+      delete waiting[key];clearTimeout(rec.t);
+      if(m.error)rec.rej(new Error(m.error.message||'ошибка Centrifugo'));
+      else rec.res(m.result||{});
+    }
+
+    ws.onmessage=function(ev){
+      var m=null;try{m=JSON.parse(ev.data)}catch(e){return}
+      if(!m||typeof m!=='object')return;
+      /* пустой объект — это пинг, отвечаем таким же */
+      if(!m.id&&!m.result&&!m.error){try{ws.send('{}')}catch(e){} return}
+      if(m.id&&waiting[m.id]){settle(waiting[m.id],m.id,m);return}
+      for(var k in waiting){
+        if(waiting[k].match&&waiting[k].match(m)){settle(waiting[k],k,m);return}
+      }
+      var r=m.result;
+      if(r&&r.channel===da.channel&&r.data&&r.data.data&&r.data.data.name==='Donations')
+        onDonation(r.data.data);
+    };
+    ws.onopen=function(){
+      ask({params:{token:da.sock}})
+        .then(function(res){
+          if(!res||!res.client)throw new Error('Centrifugo не выдал номер клиента');
+          return daProxy({action:'subscribe',channels:[da.channel],client:res.client});
+        })
+        .then(function(j){
+          var ch=j&&j.channels&&j.channels[0];
+          if(!ch||!ch.token)throw new Error('не удалось подписаться на канал донатов');
+          return ask({method:1,params:{channel:ch.channel,token:ch.token}},
+                     function(m){return !!(m&&m.result&&m.result.type===1)});
+        })
+        .then(function(){da.alive=true;da.retry=0;renderConn()})
+        .catch(function(e){
+          da.alive=false;
+          renderConn('DonationAlerts: '+(e.message||'не удалось подписаться'));
+          try{ws.close()}catch(x){}
+        });
+    };
+    ws.onclose=function(){
+      if(closed)return; closed=true;
+      da.alive=false;renderConn();
+      if(!da.token)return;
+      da.retry=Math.min(6,da.retry+1);
+      setTimeout(daStart,Math.min(30000,1000*Math.pow(2,da.retry)));
+    };
+    ws.onerror=function(){da.alive=false;renderConn()};
+  }
+  /* пришёл донат */
+  function onDonation(d){
+    if(!d||daSeen(d.id))return;
+    var amount=parseFloat(d.amount_in_user_currency);
+    if(!(amount>0))return;
+    var cost=Math.round(amount*(parseFloat(cfg.daRate)||1));
+    if(!cost)return;
+    addBid(d.username||'аноним',(d.message||'').trim(),cost,'донат');
+  }
+
+  $('#da-connect').addEventListener('click',function(){
+    if(da.token)daLogout();else daLogin();
+  });
+  $('#da-rate').addEventListener('input',function(){
+    var v=parseFloat(this.value.replace(',','.'));
+    if(!isNaN(v)&&v>0){cfg.daRate=v;aucSave()}
   });
 
   /* --- панель управления колесом --- */
@@ -2428,11 +2633,12 @@
   /* Аукцион поднимаем отдельно и под защитой: если в нём что-то сломается
      на чьём-то браузере, список фильмов всё равно должен загрузиться. */
   try{
-    aucLoad();qLoad();twLoad();
-    var twJustLoggedIn=twCatchToken();
+    aucLoad();qLoad();twLoad();daLoad();
+    var justLoggedIn=catchOAuth();
     renderConn();renderQueue();
     if(tw.token)twStart();
-    if(twJustLoggedIn&&!document.body.classList.contains('auc-view')){
+    if(da.token)daStart();
+    if(justLoggedIn&&!document.body.classList.contains('auc-view')){
       document.body.classList.add('auc-view');$('#viewtoggle').textContent='Films';
     }
     if(cfg.minBid>1)$('#a-sum').placeholder='от '+cfg.minBid;
