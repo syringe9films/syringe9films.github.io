@@ -695,7 +695,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 28 · 07.11</span>
+    <span class="build" id="build">сборка 29 · 07.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
@@ -748,12 +748,12 @@
 
     <div class="crow" id="rowFixed">
       <label class="clab" for="c-dur">Время вращения, сек</label>
-      <input id="c-dur" type="number" min="1" max="60" step="1">
+      <input id="c-dur" type="number" min="1" max="120" step="1">
     </div>
     <label class="check"><input type="checkbox" id="c-rnd"> Случайное время вращения</label>
     <div class="crow two" id="rowRandom" hidden>
-      <div><label class="clab" for="c-min">От, сек</label><input id="c-min" type="number" min="1" max="60"></div>
-      <div><label class="clab" for="c-max">До, сек</label><input id="c-max" type="number" min="1" max="60"></div>
+      <div><label class="clab" for="c-min">От, сек</label><input id="c-min" type="number" min="1" max="120"></div>
+      <div><label class="clab" for="c-max">До, сек</label><input id="c-max" type="number" min="1" max="120"></div>
     </div>
 
     <div class="crow">
@@ -1724,10 +1724,13 @@
      CSS-кривая такой формы не умеет — она либо дёргает со старта, либо
      замирает за секунду до конца. Поэтому считаем путь сами: один раз
      строим таблицу и дальше просто читаем из неё по времени. */
-  var easeTab=null;
-  function spinEase(t){
+  var easeTabs={};
+  function spinEase(t,accel,decay){
+    var a=(accel>0&&accel<0.5)?accel:0.10;
+    var n=(decay>0)?decay:1.4;
+    var key=a.toFixed(3)+'|'+n.toFixed(3), easeTab=easeTabs[key];
     if(!easeTab){
-      var N=240, a=0.10, n=1.4, v=[], acc=[0], i;
+      var N=240, v=[], acc=[0], i;
       for(i=0;i<=N;i++){
         var x=i/N, vel;
         if(x<a){var u=x/a;vel=u*u*(3-2*u)}
@@ -1737,7 +1740,7 @@
       for(i=1;i<=N;i++)acc.push(acc[i-1]+(v[i]+v[i-1])/2);
       var tot=acc[N]||1;
       for(i=0;i<=N;i++)acc[i]/=tot;
-      easeTab=acc;
+      easeTab=easeTabs[key]=acc;
     }
     if(!(t>0))return 0;
     if(t>=1)return 1;
@@ -1753,8 +1756,8 @@
     var dur=Math.round((cfg.rndTime
       ? (Math.min(cfg.durMin,cfg.durMax)+rnd()*Math.abs(cfg.durMax-cfg.durMin))
       : cfg.dur)*1000);
-    dur=Math.max(800,Math.min(60000,dur));
-    var turns=Math.max(6,Math.min(200,Math.round(dur/500)));   /* около двух оборотов в секунду */
+    dur=Math.max(800,Math.min(120000,dur));
+    var turns=Math.max(2,Math.min(400,Math.round(dur/500)));   /* около двух оборотов в секунду */
     var from=wheelAngle;
     var target=from+360*turns+(360-((mid+jit)%360))-(from%360);
     var wh=$('#wheel');
@@ -1765,12 +1768,19 @@
     if(reduce||!window.requestAnimationFrame){
       wh.style.transform='rotate('+target+'deg)';
     }else{
+      /* разгон держим около секунды независимо от длины прокрута:
+         иначе на двухминутном колесе он растянулся бы на двенадцать секунд */
+      var accel=Math.max(0.01,Math.min(0.10,1100/dur));
+      /* затухание тоже зависит от длины: при одном и том же показателе
+         двухминутное колесо замирало бы за несколько секунд до конца.
+         Так в последнюю секунду оно всегда доворачивается примерно на сектор. */
+      var decay=Math.max(0.5,Math.min(3,1.4*Math.pow(8000/dur,0.35)));
       var t0=null, span=target-from;
       var step=function(ts){
         if(t0===null)t0=ts;
         var t=(ts-t0)/dur;
         if(t>=1){wh.style.transform='rotate('+target+'deg)';return}
-        wh.style.transform='rotate('+(from+span*spinEase(t))+'deg)';
+        wh.style.transform='rotate('+(from+span*spinEase(t,accel,decay))+'deg)';
         requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
@@ -2622,11 +2632,11 @@
     var v=this.value.replace(',','.').trim();
     var m=v.match(/^(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)$/);
     if(m){
-      var a=Math.max(1,Math.min(60,parseFloat(m[1]))), b2=Math.max(1,Math.min(60,parseFloat(m[2])));
+      var a=Math.max(1,Math.min(120,parseFloat(m[1]))), b2=Math.max(1,Math.min(120,parseFloat(m[2])));
       cfg.durMin=Math.min(a,b2);cfg.durMax=Math.max(a,b2);cfg.rndTime=true;
     }else{
       var n=parseFloat(v);
-      if(!isNaN(n))cfg.dur=Math.max(1,Math.min(60,n));
+      if(!isNaN(n))cfg.dur=Math.max(1,Math.min(120,n));
       cfg.rndTime=false;
     }
     aucSave();wheelPanel();
@@ -2702,10 +2712,10 @@
       if(isNaN(v))v=def;
       return Math.max(lo,Math.min(hi,v));
     };
-    cfg.dur=num('#c-dur',8,1,60);
+    cfg.dur=num('#c-dur',8,1,120);
     cfg.rndTime=$('#c-rnd').checked;
-    cfg.durMin=num('#c-min',5,1,60);
-    cfg.durMax=num('#c-max',15,1,60);
+    cfg.durMin=num('#c-min',5,1,120);
+    cfg.durMax=num('#c-max',15,1,120);
     if(cfg.durMax<cfg.durMin){var t=cfg.durMin;cfg.durMin=cfg.durMax;cfg.durMax=t}
     cfg.format=$('#c-format').value;
     cfg.dropout=$('#c-dropout').value;
