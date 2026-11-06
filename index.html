@@ -307,6 +307,7 @@
 
   .connrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:7px}
   .connrow:last-of-type{margin-bottom:0}
+  .arr{color:var(--dim);font-size:12px}
   .connst{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);font-weight:400}
   .connst.live{color:var(--gold)}
   .connnote{font-size:12px;color:var(--dim);line-height:1.5;margin-top:9px}
@@ -549,15 +550,17 @@
           <div class="connrow">
             <button class="btn ghost" id="tw-connect" type="button">Подключить Twitch</button>
             <b class="connst" id="tw-state">не подключено</b>
-            <label class="chip toggle" title="Сколько единиц ставки даёт один балл канала">
-              курс <input type="text" id="tw-rate" inputmode="decimal" class="mini"> за балл
+            <label class="chip toggle" title="За сколько баллов канала сколько ставки начислять">
+              курс: за <input type="text" id="tw-in" inputmode="numeric" class="mini"> баллов
+              <span class="arr">&#8594;</span> <input type="text" id="tw-out" inputmode="numeric" class="mini">
             </label>
           </div>
           <div class="connrow">
             <button class="btn ghost" id="da-connect" type="button">Подключить DonationAlerts</button>
             <b class="connst" id="da-state">не подключено</b>
-            <label class="chip toggle" title="Сколько единиц ставки даёт один рубль доната">
-              курс <input type="text" id="da-rate" inputmode="decimal" class="mini"> за рубль
+            <label class="chip toggle" title="За сколько рублей доната сколько ставки начислять">
+              курс: за <input type="text" id="da-in" inputmode="numeric" class="mini"> &#8381;
+              <span class="arr">&#8594;</span> <input type="text" id="da-out" inputmode="numeric" class="mini">
             </label>
           </div>
           <div class="connnote" id="connnote"></div>
@@ -649,7 +652,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 20 · 06.11</span>
+    <span class="build" id="build">сборка 22 · 06.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
@@ -909,11 +912,14 @@
       say('Демо-режим: ключи Supabase не заполнены, список хранится только в этом браузере.');
       return Promise.resolve();
     }
-    return api('/rest/v1/films?select=*').then(function(rows){
+    /* Колонки перечислены поимённо, а не звёздочкой: added_by хранит почту
+       того, кто добавил фильм, и попадать в ответ посетителю ей незачем. */
+    return api('/rest/v1/films?select=id,title,year,score,note,watched,director,genres,created_at')
+      .then(function(rows){
       films=(rows||[]).map(function(r){
         return {id:r.id,title:r.title,year:r.year,score:parseFloat(r.score),note:r.note||'',
                 director:r.director||'',genres:r.genres||'',
-                watched:r.watched,created:new Date(r.created_at||Date.now()).getTime(),by:r.added_by||''};
+                watched:r.watched,created:new Date(r.created_at||Date.now()).getTime()};
       });
       say('');
     });
@@ -1210,7 +1216,7 @@
   var history=[], segs=[], pool=null, roundNo=0, plan=null, duel=null;
   var cfg={dur:8,rndTime:false,durMin:5,durMax:15,format:'normal',dropout:'simulation',
            splitLevel:0,minBid:1,tDur:600,tAdd:0,tThreshold:1,tAutoStart:false,
-           showPct:true,sortMode:'sum',sound:true,showFair:false,twRate:1,daRate:1};
+           showPct:true,sortMode:'sum',sound:true,showFair:false,twIn:1,twOut:1,daIn:1,daOut:1};
   var timer={left:0,running:false,tick:null};
 
   function rnd(){
@@ -1310,6 +1316,11 @@
       if(raw.win&&raw.win.title){lastResult=raw.win;lastWin=raw.win.id||null}
       if(Array.isArray(raw.history))history=raw.history.slice(0,40);
       if(raw.cfg)for(var k in cfg)if(raw.cfg[k]!==undefined)cfg[k]=raw.cfg[k];
+      /* курс прежних сборок одним дробным числом — забираем, чтобы перевести */
+      if(raw.cfg){
+        if(raw.cfg.twRate!==undefined)cfg.twRate=raw.cfg.twRate;
+        if(raw.cfg.daRate!==undefined)cfg.daRate=raw.cfg.daRate;
+      }
       if(!raw.cfgV){cfg.tAdd=0;cfg.cfgV=2}
       if(raw.timerLeft>0)timer.left=raw.timerLeft;
     }
@@ -2002,6 +2013,24 @@
   /* Общее для Twitch и DA: точное совпадение названия — сумма сразу идёт
      в лот, всё прочее ждёт решения в заявках, чтобы опечатки не плодили
      лоты-двойники. */
+  /* Курс задаётся двумя целыми числами: «за сколько пришло — сколько начислить».
+     Дробей писать не нужно: 1000 баллов \u2192 100 это то же самое, что множитель 0,1. */
+  function rateOf(k){
+    var i=parseInt(cfg[k+'In'],10), o=parseInt(cfg[k+'Out'],10);
+    if(!(i>0))i=1; if(!(o>0))o=1;
+    return o/i;
+  }
+  /* настройки из прежних сборок, где курс был одним дробным числом */
+  function migrateRates(){
+    ['tw','da'].forEach(function(k){
+      var r=parseFloat(cfg[k+'Rate']);
+      delete cfg[k+'Rate'];
+      if(!(r>0)||r===1)return;                        /* переносить нечего */
+      if(cfg[k+'In']!==1||cfg[k+'Out']!==1)return;    /* новый курс уже задан */
+      if(r>=1)cfg[k+'Out']=Math.round(r)||1;
+      else cfg[k+'In']=Math.round(1/r)||1;
+    });
+  }
   function addBid(who,text,cost,src){
     var exact=null, k=norm(text);
     if(text)for(var i=0;i<lots.length;i++)if(norm(lots[i].title)===k){exact=lots[i];break}
@@ -2019,7 +2048,7 @@
   /* награда за баллы потрачена */
   function onRedemption(e){
     var text=(e.user_input||'').trim();
-    var cost=Math.round((+e.reward.cost||0)*(parseFloat(cfg.twRate)||1));
+    var cost=Math.round((+e.reward.cost||0)*rateOf('tw'));
     var who=e.user_name||e.user_login||'\u0437\u0440\u0438\u0442\u0435\u043b\u044c';
     if(!cost)return;
     addBid(who,text,cost,(e.reward&&e.reward.title)||'');
@@ -2054,8 +2083,11 @@
     else if(tw.token||da.token)n.textContent='\u0423\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e \u0441\u0432\u044f\u0437\u044c\u2026';
     else n.innerHTML='Twitch \u2014 \u043d\u0430\u0433\u0440\u0430\u0434\u044b \u0437\u0430 \u0431\u0430\u043b\u043b\u044b \u043a\u0430\u043d\u0430\u043b\u0430: \u043d\u0443\u0436\u043d\u0430 \u043d\u0430\u0433\u0440\u0430\u0434\u0430 \u0441 \u0432\u043a\u043b\u044e\u0447\u0451\u043d\u043d\u044b\u043c \u0432\u0432\u043e\u0434\u043e\u043c \u0442\u0435\u043a\u0441\u0442\u0430. '+
       'DonationAlerts \u2014 \u0434\u043e\u043d\u0430\u0442\u044b: \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435 \u043b\u043e\u0442\u0430 \u0437\u0440\u0438\u0442\u0435\u043b\u044c \u043f\u0438\u0448\u0435\u0442 \u0432 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0438 \u043a \u0434\u043e\u043d\u0430\u0442\u0443.';
-    if($('#tw-rate')&&document.activeElement!==$('#tw-rate'))$('#tw-rate').value=cfg.twRate||1;
-    if($('#da-rate')&&document.activeElement!==$('#da-rate'))$('#da-rate').value=cfg.daRate||1;
+    ['tw-in','tw-out','da-in','da-out'].forEach(function(id){
+      var el=$('#'+id); if(!el||document.activeElement===el)return;
+      var k=id.replace('-in','In').replace('-out','Out');
+      el.value=cfg[k]>0?cfg[k]:1;
+    });
   }
   function renderQueue(){
     var q=$('#queue');
@@ -2099,10 +2131,15 @@
   $('#tw-connect').addEventListener('click',function(){
     if(tw.token)twLogout();else twLogin();
   });
-  $('#tw-rate').addEventListener('input',function(){
-    var v=parseFloat(this.value.replace(',','.'));
-    if(!isNaN(v)&&v>0){cfg.twRate=v;aucSave()}
-  });
+  function bindRate(id,key){
+    var el=$('#'+id); if(!el)return;
+    el.addEventListener('input',function(){
+      var v=parseInt(String(this.value).replace(/[^\d]/g,''),10);
+      if(v>0){cfg[key]=v;aucSave()}
+    });
+    el.addEventListener('blur',function(){if(!(cfg[key]>0))cfg[key]=1;renderConn()});
+  }
+  bindRate('tw-in','twIn');bindRate('tw-out','twOut');
 
   /* ===== DonationAlerts: донаты как ставки =====
      DA не разрешает браузеру обращаться к своему API со стороннего сайта,
@@ -2261,7 +2298,7 @@
     if(!d||daSeen(d.id))return;
     var amount=parseFloat(d.amount_in_user_currency);
     if(!(amount>0))return;
-    var cost=Math.round(amount*(parseFloat(cfg.daRate)||1));
+    var cost=Math.round(amount*rateOf('da'));
     if(!cost)return;
     addBid(d.username||'аноним',(d.message||'').trim(),cost,'донат');
   }
@@ -2269,10 +2306,7 @@
   $('#da-connect').addEventListener('click',function(){
     if(da.token)daLogout();else daLogin();
   });
-  $('#da-rate').addEventListener('input',function(){
-    var v=parseFloat(this.value.replace(',','.'));
-    if(!isNaN(v)&&v>0){cfg.daRate=v;aucSave()}
-  });
+  bindRate('da-in','daIn');bindRate('da-out','daOut');
 
   /* --- панель управления колесом --- */
   function wheelPanel(){
@@ -2633,7 +2667,7 @@
   /* Аукцион поднимаем отдельно и под защитой: если в нём что-то сломается
      на чьём-то браузере, список фильмов всё равно должен загрузиться. */
   try{
-    aucLoad();qLoad();twLoad();daLoad();
+    aucLoad();migrateRates();qLoad();twLoad();daLoad();
     var justLoggedIn=catchOAuth();
     renderConn();renderQueue();
     if(tw.token)twStart();
