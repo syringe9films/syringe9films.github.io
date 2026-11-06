@@ -652,7 +652,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 22 · 06.11</span>
+    <span class="build" id="build">сборка 23 · 06.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
@@ -2042,7 +2042,7 @@
     }else{
       queue.unshift({id:uid(),who:who,text:text,sum:cost,at:Date.now(),reward:src||''});
       queue=queue.slice(0,40);qSave();renderQueue();
-      flash(who+' \u2192 \u0437\u0430\u044f\u0432\u043a\u0430 \u00ab'+(text||src||'\u0431\u0435\u0437 \u0442\u0435\u043a\u0441\u0442\u0430')+'\u00bb');
+      flash(who+' \u2192 \u0437\u0430\u044f\u0432\u043a\u0430 \u00ab'+(text||src||'\u0431\u0435\u0437 \u0442\u0435\u043a\u0441\u0442\u0430')+'\u00bb (+'+money(cost)+')');
     }
   }
   /* награда за баллы потрачена */
@@ -2096,7 +2096,8 @@
     q.innerHTML='<div class="qh">Заявки · '+queue.length+'</div>'+queue.map(function(r){
       var t=new Date(r.at), time=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
       return '<div class="qrow" data-q="'+r.id+'">'+
-        '<div class="qtop"><span class="qwho">'+esc(r.who)+' · '+time+'</span>'+
+        '<div class="qtop"><span class="qwho">'+esc(r.who)+' · '+time+
+          (r.reward?' · '+esc(r.reward):'')+'</span>'+
           '<span class="qsum">'+money(r.sum)+'</span></div>'+
         '<div class="qtext">'+esc(r.text||'(без текста)')+'</div>'+
         '<div class="qacts">'+
@@ -2296,11 +2297,17 @@
   /* пришёл донат */
   function onDonation(d){
     if(!d||daSeen(d.id))return;
-    var amount=parseFloat(d.amount_in_user_currency);
+    /* amount — сумма, которую отправил зритель, в валюте currency.
+       amount_in_user_currency DA пересчитывает в валюту счёта стримера:
+       на рублёвом донате при долларовом счёте оно даёт около единицы. */
+    var amount=parseFloat(d.amount);
+    if(!(amount>0))amount=parseFloat(d.amount_in_user_currency);
     if(!(amount>0))return;
     var cost=Math.round(amount*rateOf('da'));
     if(!cost)return;
-    addBid(d.username||'аноним',(d.message||'').trim(),cost,'донат');
+    var cur=String(d.currency||'').toUpperCase();
+    addBid(d.username||'аноним',(d.message||'').trim(),cost,
+           (cur&&cur!=='RUB')?('донат '+cur):'донат');
   }
 
   $('#da-connect').addEventListener('click',function(){
