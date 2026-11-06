@@ -485,20 +485,25 @@
   body.screen .fair .fnote,body.screen .fair .linkbtn{display:none}
   body.screen .wrap{max-width:none;padding:2.2vh 3vw;box-sizing:border-box;
     min-height:100vh;display:flex;flex-direction:column;justify-content:center}
-  body.screen .auc{grid-template-columns:minmax(0,43%) minmax(0,1fr);
-    gap:3vw;align-items:center}
+  body.screen .auc{grid-template-columns:minmax(0,51%) minmax(0,1fr);
+    gap:2.2vw;align-items:center}
   body.screen .box.flat{border:0;background:none;padding:0}
   body.screen .wheelcol{display:flex;flex-direction:column;align-items:center;justify-content:center}
   body.screen .wheelwrap{width:100%;max-width:min(74vh,980px);margin:0 auto}
-  body.screen .lots{max-height:none;overflow:visible}
+  body.screen .lots{max-height:82vh;overflow-y:auto}
   body.screen .tbar{padding-bottom:2.2vh;margin-bottom:2.2vh}
   body.screen .tbar .tval{font-size:clamp(31px,5.4vh,76px);min-width:0}
   body.screen .tbar .btn{font-size:clamp(11px,1.5vh,19px);padding:clamp(9px,1.3vh,18px) clamp(14px,2vh,28px)}
   body.screen .tstate{font-size:clamp(10px,1.25vh,15px)}
-  body.screen .lot{padding:clamp(9px,1.25vh,20px) 8px}
+  body.screen .lot{padding:clamp(12px,2.5vh,38px) 10px;gap:clamp(10px,1.4vh,20px);
+    grid-template-columns:clamp(26px,3vh,42px) 1fr clamp(118px,13vh,180px) clamp(88px,10vh,140px) auto auto}
+  body.screen .lsum,body.screen .ladd{padding:clamp(8px,1.2vh,16px) 10px;
+    font-size:clamp(14px,1.8vh,24px)}
+  body.screen .lot .icon{width:clamp(26px,3vh,40px);height:clamp(26px,3vh,40px);
+    font-size:clamp(14px,1.8vh,23px)}
   body.screen .lot .lt{font-size:clamp(17px,2.35vh,32px)}
   body.screen .lot .lp{font-size:clamp(11px,1.45vh,19px)}
-  body.screen .lot .num{font-size:clamp(10px,1.3vh,17px)}
+  body.screen .lot .lnum{font-size:clamp(10px,1.4vh,18px)}
   body.screen .qrow{padding:clamp(9px,1.2vh,18px) 12px}
   body.screen .qtext{font-size:clamp(15px,2vh,27px)}
   body.screen .winner{margin-top:2vh}
@@ -719,7 +724,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 30 · 07.11</span>
+    <span class="build" id="build">сборка 31 · 07.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
