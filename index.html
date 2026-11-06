@@ -471,19 +471,43 @@
   .updbar button{background:var(--gold);border:0;color:#1a1510;font:inherit;font-weight:700;
     padding:7px 14px;cursor:pointer}
   /* чистый вид для захвата окна в OBS */
+  /* Режим стрима: страницу смотрят зрители на большом экране, поэтому она
+     занимает его целиком, колесо растёт по высоте окна, а служебное прячется.
+     Блок подключений убран ещё и потому, что в нём видны имена аккаунтов. */
   body.screen .head,body.screen .banner,body.screen .foot,body.screen .aucform,
   body.screen #auc-paste,body.screen #screen-on,body.screen #open-cfg,
   body.screen .hist2,body.screen .auctools,body.screen .tquick,
   body.screen .fmtrow,body.screen .setrow,body.screen .dur,
-  body.screen #s-rnd,body.screen #s-snd{display:none}
+  body.screen #s-rnd,body.screen #s-snd,
+  body.screen #connbox,body.screen .aucacts,body.screen .aerr,
+  body.screen .tbar .chip.toggle{display:none}
   body.screen .fair{margin-top:14px}
   body.screen .fair .fnote,body.screen .fair .linkbtn{display:none}
-  body.screen .wrap{max-width:1180px;padding:18px 22px 24px}
-  body.screen .auc{grid-template-columns:minmax(0,620px) minmax(0,1fr);gap:40px;align-items:center}
-  body.screen .winner .wn{font-size:30px}
-  body.screen .lot .lt{font-size:17px}
-  body.screen .lot .lp{font-size:17px}
-  body.screen #spin{flex:1 1 100%}
+  body.screen .wrap{max-width:none;padding:2.2vh 3vw;box-sizing:border-box;
+    min-height:100vh;display:flex;flex-direction:column;justify-content:center}
+  body.screen .auc{grid-template-columns:minmax(0,43%) minmax(0,1fr);
+    gap:3vw;align-items:center}
+  body.screen .box.flat{border:0;background:none;padding:0}
+  body.screen .wheelcol{display:flex;flex-direction:column;align-items:center;justify-content:center}
+  body.screen .wheelwrap{width:100%;max-width:min(74vh,980px);margin:0 auto}
+  body.screen .lots{max-height:none;overflow:visible}
+  body.screen .tbar{padding-bottom:2.2vh;margin-bottom:2.2vh}
+  body.screen .tbar .tval{font-size:clamp(31px,5.4vh,76px);min-width:0}
+  body.screen .tbar .btn{font-size:clamp(11px,1.5vh,19px);padding:clamp(9px,1.3vh,18px) clamp(14px,2vh,28px)}
+  body.screen .tstate{font-size:clamp(10px,1.25vh,15px)}
+  body.screen .lot{padding:clamp(9px,1.25vh,20px) 8px}
+  body.screen .lot .lt{font-size:clamp(17px,2.35vh,32px)}
+  body.screen .lot .lp{font-size:clamp(11px,1.45vh,19px)}
+  body.screen .lot .num{font-size:clamp(10px,1.3vh,17px)}
+  body.screen .qrow{padding:clamp(9px,1.2vh,18px) 12px}
+  body.screen .qtext{font-size:clamp(15px,2vh,27px)}
+  body.screen .winner{margin-top:2vh}
+  body.screen .winner .wn{font-size:clamp(30px,4.2vh,60px)}
+  body.screen .winner .wl{font-size:clamp(10px,1.3vh,16px)}
+  body.screen .winner .wc{font-size:clamp(12px,1.5vh,19px)}
+  body.screen .wnote{font-size:clamp(11px,1.4vh,17px);margin-top:1.4vh}
+  body.screen #spin{flex:1 1 100%;font-size:clamp(14px,2vh,26px);
+    padding:clamp(16px,2.2vh,30px) 20px}
   .screenout{position:fixed;top:10px;right:12px;z-index:9;opacity:.25}
   .screenout:hover{opacity:1}
   body:not(.screen) .screenout{display:none}
@@ -695,7 +719,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 29 · 07.11</span>
+    <span class="build" id="build">сборка 30 · 07.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
