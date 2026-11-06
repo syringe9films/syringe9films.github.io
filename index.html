@@ -248,7 +248,8 @@
   .tval.done{color:var(--warn);text-shadow:none}
   #tedit{width:122px;font-size:32px;font-weight:700;font-variant-numeric:tabular-nums;padding:2px 6px}
   .timer .btn{padding:9px 15px}
-  .tquick{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;align-items:center}
+  .tquick{display:flex;flex-wrap:wrap;gap:4px;margin-top:0;align-items:center}
+  .tright{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}
   .chip{background:var(--bg);border:1px solid var(--edge);color:var(--muted);font:inherit;font-size:12px;
     padding:6px 10px;cursor:pointer;border-radius:0}
   .chip:hover{border-color:var(--edge3);color:var(--gold2)}
@@ -262,7 +263,7 @@
   .chip[data-add]{min-width:38px;text-align:center;font-variant-numeric:tabular-nums}
 
   /* --- форма лота --- */
-  .aucform{display:flex;gap:8px;flex-wrap:wrap}
+  .aucform{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
   #a-title{flex:1 1 200px;min-width:0;max-width:420px;font-family:var(--serif)}
   #a-sum{width:110px;font-variant-numeric:tabular-nums}
   .aerr{font-size:13px;color:var(--gold);margin-top:9px}
@@ -272,9 +273,9 @@
   /* --- список лотов --- */
   .auctools{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:11px}
   #l-search{flex:1 1 170px;min-width:0;max-width:340px;padding:7px 11px;font-size:13px}
-  .lots{border-top:1px solid var(--edge2)}
-  .lot{display:grid;grid-template-columns:26px 1fr 110px 86px auto auto;align-items:center;gap:10px;
-    padding:12px 8px 10px;border-bottom:1px solid var(--edge);position:relative}
+  .lots{border-top:1px solid var(--edge2);max-height:44vh;overflow-y:auto;overscroll-behavior:contain}
+  .lot{display:grid;grid-template-columns:24px 1fr 104px 80px auto auto;align-items:center;gap:9px;
+    padding:9px 8px 8px;border-bottom:1px solid var(--edge);position:relative}
   .lsum,.ladd{padding:7px 9px;font-size:14px;text-align:right;font-variant-numeric:tabular-nums;
     background:var(--bg);border:1px solid var(--edge);color:var(--ink);min-width:0;width:100%}
   .lsum:focus,.ladd:focus{border-color:var(--edge3);box-shadow:none;outline:1px solid var(--gold)}
@@ -290,7 +291,7 @@
   .lot.out .lt{text-decoration:line-through}
   .lot.out::after{display:none}
   .lnum{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;text-align:right}
-  .lot .lt{font-family:var(--serif);font-size:17px;word-break:break-word;line-height:1.3}
+  .lot .lt{font-family:var(--serif);font-size:16px;word-break:break-word;line-height:1.25}
   .lot .lt small{display:block;font-family:var(--sans);font-size:11px;color:var(--dim);
     letter-spacing:.06em;margin-top:3px;font-variant-numeric:tabular-nums}
   .lot .lx{opacity:.45;transition:opacity .1s}
@@ -302,12 +303,24 @@
   .icon.armed{color:var(--warn);border-color:var(--warn);font-weight:700}
   .icon:focus-visible{outline:1px solid var(--gold)}
   .aucempty{padding:30px 7px;color:var(--muted);font-family:var(--serif);font-size:15px;line-height:1.6}
-  .aucsum{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--dim);margin-bottom:9px}
-  .aucacts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .aucsum{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--dim);
+    margin-left:auto;white-space:nowrap}
+  .aucacts{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
 
   .connrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:7px}
   .connrow:last-of-type{margin-bottom:0}
   .arr{color:var(--dim);font-size:12px}
+  .tbar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+    padding-bottom:13px;margin-bottom:14px;border-bottom:1px solid var(--edge2)}
+  .tbar .tval{font-size:31px;min-width:88px}
+  .tstate{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);font-weight:400}
+  .tbar .chip{padding:5px 9px;font-size:11px}
+  .tbar .chip.toggle{margin-left:0}
+  .connhead{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+  .bxh2{font-size:10px;text-transform:uppercase;letter-spacing:.17em;color:var(--dim)}
+  .connhead .chip{margin-left:auto;padding:5px 9px;font-size:11px}
+  .conndetail{margin-top:12px}
+  .conn .connnote{margin-top:10px}
   .connst{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);font-weight:400}
   .connst.live{color:var(--gold)}
   .connnote{font-size:12px;color:var(--dim);line-height:1.5;margin-top:9px}
@@ -317,7 +330,25 @@
   .queue{margin-bottom:12px}
   .queue:empty{display:none}
   .qh{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--dim);margin-bottom:8px}
-  .qrow{border:1px solid var(--edge2);background:var(--bg2);padding:10px 12px;margin-bottom:7px}
+  .qrow{border:0;border-left:2px solid var(--gold);background:var(--bg2);
+    padding:9px 12px;margin-bottom:6px}
+  .qhint{margin-left:auto;text-transform:none;letter-spacing:0;font-size:11px;opacity:.65}
+  .qh{display:flex;align-items:baseline;gap:10px}
+  .qrow{cursor:grab}
+  .qrow:hover{background:hsl(var(--h) var(--s) 67% / .06)}
+  .qrow:active{cursor:grabbing}
+  .qrow.dragging{opacity:.4}
+  body.dragq .lot{outline:1px dashed hsl(var(--h) var(--s) 32%);outline-offset:-3px}
+  body.dragq .lot .lsum,body.dragq .lot .ladd{pointer-events:none}
+  .lot.dropto{outline:1px solid var(--gold);outline-offset:-3px;
+    background:hsl(var(--h) var(--s) 67% / .10)}
+  body.dragq .aucform{outline:1px dashed hsl(var(--h) var(--s) 32%);outline-offset:4px}
+  .aucform.dropto{outline:1px solid var(--gold);outline-offset:4px}
+  body.dragq .aucform::after{content:'бросьте сюда — заведу новый лот';
+    flex:1 0 100%;font-size:11px;color:var(--dim);margin-top:-2px}
+  @keyframes bumpf{from{background:hsl(var(--h) var(--s) 67% / .22)}to{background:transparent}}
+  .lot.bump{animation:bumpf 1.6s ease-out}
+
   .qtop{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
   .qwho{font-size:12px;color:var(--dim)}
   .qsum{font-variant-numeric:tabular-nums;font-weight:700;color:var(--gold);margin-left:auto}
@@ -498,46 +529,43 @@
   <div id="auction">
     <div class="auc">
       <div class="aucside">
-        <div class="box">
-          <div class="bxh">Таймер<b id="tstate"></b></div>
-          <div class="timer">
-            <button class="tval" id="tval" type="button" title="Нажмите, чтобы задать время">10:00</button>
-            <input id="tedit" type="text" inputmode="numeric" hidden placeholder="10:00">
-            <button class="btn" id="tstart" type="button">Старт</button>
-            <button class="btn ghost" id="treset" type="button">Сброс</button>
-          </div>
-          <div class="tquick">
-            <button class="chip" data-add="-600" type="button" title="Убавить 10 минут">−10</button>
-            <button class="chip" data-add="-300" type="button" title="Убавить 5 минут">−5</button>
-            <button class="chip" data-add="-60" type="button" title="Убавить минуту">−1</button>
+        <div class="tbar">
+          <button class="tval" id="tval" type="button" title="Нажмите, чтобы задать время">10:00</button>
+          <input id="tedit" type="text" inputmode="numeric" hidden placeholder="10:00">
+          <button class="btn" id="tstart" type="button">Старт</button>
+          <button class="btn ghost" id="treset" type="button">Сброс</button>
+          <b class="tstate" id="tstate"></b>
+          <span class="tright">
+          <span class="tquick">
+            <button class="chip" data-add="-600" type="button" title="Убавить 10 минут">&#8722;10</button>
+            <button class="chip" data-add="-300" type="button" title="Убавить 5 минут">&#8722;5</button>
+            <button class="chip" data-add="-60" type="button" title="Убавить минуту">&#8722;1</button>
             <button class="chip" data-add="60" type="button" title="Добавить минуту">+1</button>
             <button class="chip" data-add="300" type="button" title="Добавить 5 минут">+5</button>
             <button class="chip" data-add="600" type="button" title="Добавить 10 минут">+10</button>
-            <label class="chip toggle" title="Каждая новая ставка продлевает таймер">
-              <input type="checkbox" id="tauto"> ставка даёт
-              <input type="text" id="taddq" inputmode="numeric" class="mini"> сек
-            </label>
-          </div>
+          </span>
+          <label class="chip toggle" title="Каждая новая ставка продлевает таймер">
+            <input type="checkbox" id="tauto"> ставка даёт
+            <input type="text" id="taddq" inputmode="numeric" class="mini"> сек
+          </label>
+          </span>
         </div>
 
-        <div class="box">
-          <div class="bxh">Новый лот</div>
+        <div class="box flat">
           <form class="aucform" id="aucform" autocomplete="off">
-            <input id="a-title" placeholder="Название">
+            <input id="a-title" placeholder="Название лота">
             <input id="a-sum" type="text" inputmode="decimal" autocomplete="off" placeholder="Ставка">
             <button class="btn" type="submit">Добавить</button>
           </form>
           <div class="aerr" id="a-err"></div>
-        </div>
-
-        <div class="box flat">
           <div class="auctools">
             <input id="l-search" placeholder="Поиск среди лотов" autocomplete="off">
             <button class="chip" id="t-pct" type="button" title="Показывать проценты или суммы">%</button>
             <button class="chip" id="t-sort" type="button" title="Порядок списка">по ставке</button>
             <button class="chip" id="t-new" type="button" title="Очистить и начать новый аукцион">новый</button>
+            <span class="aucsum" id="aucsum"></span>
           </div>
-          <div class="aucsum" id="aucsum"></div>
+          <div class="queue" id="queue"></div>
           <div class="lots" id="lots"></div>
           <div class="aucacts">
             <button class="btn ghost" id="open-cfg" type="button">Настройки</button>
@@ -545,27 +573,31 @@
           </div>
         </div>
 
-        <div class="box" id="connbox">
-          <div class="bxh">Подключения</div>
-          <div class="connrow">
-            <button class="btn ghost" id="tw-connect" type="button">Подключить Twitch</button>
-            <b class="connst" id="tw-state">не подключено</b>
-            <label class="chip toggle" title="За сколько баллов канала сколько ставки начислять">
-              курс: за <input type="text" id="tw-in" inputmode="numeric" class="mini"> баллов
-              <span class="arr">&#8594;</span> <input type="text" id="tw-out" inputmode="numeric" class="mini">
-            </label>
+        <div class="box conn" id="connbox">
+          <div class="connhead">
+            <span class="bxh2">Подключения</span>
+            <b class="connst" id="tw-state">Twitch &#8212; нет</b>
+            <b class="connst" id="da-state">DA &#8212; нет</b>
+            <button class="chip" id="conn-toggle" type="button">настроить</button>
           </div>
-          <div class="connrow">
-            <button class="btn ghost" id="da-connect" type="button">Подключить DonationAlerts</button>
-            <b class="connst" id="da-state">не подключено</b>
-            <label class="chip toggle" title="За сколько рублей доната сколько ставки начислять">
-              курс: за <input type="text" id="da-in" inputmode="numeric" class="mini"> &#8381;
-              <span class="arr">&#8594;</span> <input type="text" id="da-out" inputmode="numeric" class="mini">
-            </label>
+          <div class="conndetail" id="conndetail" hidden>
+            <div class="connrow">
+              <button class="btn ghost" id="tw-connect" type="button">Подключить Twitch</button>
+              <label class="chip toggle" title="За сколько баллов канала сколько ставки начислять">
+                курс: за <input type="text" id="tw-in" inputmode="numeric" class="mini"> баллов
+                <span class="arr">&#8594;</span> <input type="text" id="tw-out" inputmode="numeric" class="mini">
+              </label>
+            </div>
+            <div class="connrow">
+              <button class="btn ghost" id="da-connect" type="button">Подключить DonationAlerts</button>
+              <label class="chip toggle" title="За сколько рублей доната сколько ставки начислять">
+                курс: за <input type="text" id="da-in" inputmode="numeric" class="mini"> &#8381;
+                <span class="arr">&#8594;</span> <input type="text" id="da-out" inputmode="numeric" class="mini">
+              </label>
+            </div>
           </div>
           <div class="connnote" id="connnote"></div>
         </div>
-        <div class="queue" id="queue"></div>
         <div class="fair" id="fair"></div>
         <div class="hist2" id="aucHistory"></div>
       </div>
@@ -652,7 +684,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 23 · 06.11</span>
+    <span class="build" id="build">сборка 25 · 06.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
@@ -1448,6 +1480,7 @@
       var i=act.findIndex(function(x){return x.id===l.id});
       var c=out?'transparent':lotColor(i<0?0:i,act.length);
       return '<div class="lot'+(lastWin===l.id?' win':'')+(out?' out':'')+'"'+
+        ' data-lotid="'+l.id+'"'+
         ' style="--w:'+Math.max(2,pct).toFixed(1)+'%;--barc:'+c+'">'+
         '<span class="lnum">'+(n+1)+'</span>'+
         '<div class="lt">'+esc(l.title)+
@@ -1460,6 +1493,10 @@
         '<button class="icon del lx" data-lot="'+l.id+'" title="Убрать лот">×</button></div>';
     }).join(''):'<div class="aucempty">'+(list.length?'Среди лотов ничего не нашлось.'
         :'Лотов пока нет. Добавьте первый в форме сверху или вставьте список целиком.')+'</div>';
+    if(bumpId){
+      var bEl=document.querySelector('.lot[data-lotid="'+bumpId+'"]');
+      if(bEl)bEl.classList.add('bump');
+    }
     drawWheel();
     $('#wheelnote').textContent=cfg.format==='normal'
       ? ''
@@ -2037,7 +2074,7 @@
     if(exact){
       exact.sum+=cost;
       if(timer.running&&cost>=cfg.tThreshold&&cfg.tAdd>0){timer.left+=cfg.tAdd;renderTimer()}
-      resetRound();lotsChanged();
+      resetRound();lotsChanged();bump(exact.id);
       flash(who+' \u2192 '+exact.title+' (+'+money(cost)+')');
     }else{
       queue.unshift({id:uid(),who:who,text:text,sum:cost,at:Date.now(),reward:src||''});
@@ -2060,6 +2097,9 @@
     clearTimeout(flash.t);
     flash.t=setTimeout(function(){renderConn()},6000);
   }
+  /* Подробности подключений свёрнуты: их трогают раз за эфир.
+     Пока ничего не подключено — показываем развёрнутыми сами. */
+  var connOpen=null;
   function renderConn(msg){
     var n=$('#connnote');
     if(!n)return;
@@ -2067,13 +2107,19 @@
     var ds=$('#da-state'), db=$('#da-connect');
     var twOn=!!(tw.token&&tw.user&&tw.alive);
     var daOn=!!(da.token&&da.user&&da.alive);
+    var det=$('#conndetail'), tgl=$('#conn-toggle');
+    var open=(connOpen===null)?!(tw.token||da.token):connOpen;
+    if(det)det.hidden=!open;
+    if(tgl)tgl.textContent=open?'свернуть':'настроить';
     if(ts){
-      ts.textContent=twOn?('Twitch \u00b7 '+tw.user.name):(tw.token?'\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435\u2026':'\u043d\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u043e');
+      ts.textContent=twOn?('Twitch \u00b7 '+tw.user.name)
+        :(tw.token?'Twitch \u00b7 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435\u2026':'Twitch \u2014 \u043d\u0435\u0442');
       ts.classList.toggle('live',twOn);
     }
     if(tb)tb.textContent=tw.token?'\u041e\u0442\u043a\u043b\u044e\u0447\u0438\u0442\u044c Twitch':'\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c Twitch';
     if(ds){
-      ds.textContent=daOn?('DA \u00b7 '+da.user.name):(da.token?'\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435\u2026':'\u043d\u0435 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u043e');
+      ds.textContent=daOn?('DA \u00b7 '+da.user.name)
+        :(da.token?'DA \u00b7 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435\u2026':'DA \u2014 \u043d\u0435\u0442');
       ds.classList.toggle('live',daOn);
     }
     if(db)db.textContent=da.token?'\u041e\u0442\u043a\u043b\u044e\u0447\u0438\u0442\u044c DonationAlerts':'\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u044c DonationAlerts';
@@ -2093,9 +2139,11 @@
     var q=$('#queue');
     if(!q)return;
     if(!queue.length){q.innerHTML='';return}
-    q.innerHTML='<div class="qh">Заявки · '+queue.length+'</div>'+queue.map(function(r){
+    q.innerHTML='<div class="qh">Заявки · '+queue.length+
+      '<span class="qhint">перетащите на лот или на форму сверху</span></div>'+
+      queue.map(function(r){
       var t=new Date(r.at), time=String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
-      return '<div class="qrow" data-q="'+r.id+'">'+
+      return '<div class="qrow" draggable="true" data-q="'+r.id+'">'+
         '<div class="qtop"><span class="qwho">'+esc(r.who)+' · '+time+
           (r.reward?' · '+esc(r.reward):'')+'</span>'+
           '<span class="qsum">'+money(r.sum)+'</span></div>'+
@@ -2140,6 +2188,11 @@
     });
     el.addEventListener('blur',function(){if(!(cfg[key]>0))cfg[key]=1;renderConn()});
   }
+  $('#conn-toggle').addEventListener('click',function(){
+    var open=(connOpen===null)?!(tw.token||da.token):connOpen;
+    connOpen=!open;
+    renderConn();
+  });
   bindRate('tw-in','twIn');bindRate('tw-out','twOut');
 
   /* ===== DonationAlerts: донаты как ставки =====
@@ -2314,6 +2367,105 @@
     if(da.token)daLogout();else daLogin();
   });
   bindRate('da-in','daIn');bindRate('da-out','daOut');
+
+  /* ===== перетаскивание заявок =====
+     Заявку можно бросить на лот — сумма уйдёт туда — или на форму нового
+     лота сверху. Кнопки в строке заявки остаются: на телефонах перетаскивания
+     нет, да и мышью не всем удобно. */
+  var dragQ=null, bumpId=null, bumpT=null;
+
+  function qById(id){
+    for(var i=0;i<queue.length;i++)if(queue[i].id===id)return queue[i];
+    return null;
+  }
+  function lotById(id){
+    for(var i=0;i<lots.length;i++)if(lots[i].id===id)return lots[i];
+    return null;
+  }
+  /* коротко подсветить лот, в который только что пришла ставка */
+  function bump(id){
+    bumpId=id;
+    var el=document.querySelector('.lot[data-lotid="'+id+'"]');
+    if(el){el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump')}
+    clearTimeout(bumpT);
+    bumpT=setTimeout(function(){bumpId=null},1800);
+  }
+  function clearDrop(){
+    var t=document.querySelector('.lot.dropto');if(t)t.classList.remove('dropto');
+    var f=$('#aucform');if(f)f.classList.remove('dropto');
+  }
+  function dropToLot(qid,lotId){
+    var r=qById(qid), l=lotById(lotId);
+    if(!r||!l||spinning)return;
+    l.sum+=r.sum;
+    queue=queue.filter(function(x){return x.id!==qid});
+    qSave();resetRound();lotsChanged();
+    bump(l.id);
+    flash(r.who+' → '+l.title+' (+'+money(r.sum)+')');
+  }
+  function dropToNew(qid){
+    var r=qById(qid);
+    if(!r||spinning)return;
+    if(lotAdd(r.text||('Заявка от '+r.who), r.sum)===1){
+      queue=queue.filter(function(x){return x.id!==qid});
+      qSave();renderQueue();lotsChanged();
+    }
+  }
+
+  $('#queue').addEventListener('dragstart',function(e){
+    var row=e.target.closest&&e.target.closest('.qrow');
+    if(!row||spinning){e.preventDefault();return}
+    dragQ=row.getAttribute('data-q');
+    row.classList.add('dragging');
+    document.body.classList.add('dragq');
+    try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragQ)}catch(x){}
+  });
+  $('#queue').addEventListener('dragend',function(){
+    dragQ=null;
+    document.body.classList.remove('dragq');
+    var d=document.querySelector('.qrow.dragging');if(d)d.classList.remove('dragging');
+    clearDrop();
+  });
+
+  $('#lots').addEventListener('dragover',function(e){
+    if(!dragQ)return;
+    e.preventDefault();
+    try{e.dataTransfer.dropEffect='move'}catch(x){}
+    var row=e.target.closest&&e.target.closest('.lot');
+    var cur=document.querySelector('.lot.dropto');
+    if(cur&&cur!==row)cur.classList.remove('dropto');
+    if(row)row.classList.add('dropto');
+  });
+  $('#lots').addEventListener('dragleave',function(e){
+    var row=e.target.closest&&e.target.closest('.lot');
+    if(row&&!row.contains(e.relatedTarget))row.classList.remove('dropto');
+  });
+  $('#lots').addEventListener('drop',function(e){
+    if(!dragQ)return;
+    e.preventDefault();
+    var row=e.target.closest&&e.target.closest('.lot');
+    var id=dragQ;
+    clearDrop();
+    if(row&&row.getAttribute('data-lotid'))dropToLot(id,row.getAttribute('data-lotid'));
+  });
+
+  $('#aucform').addEventListener('dragover',function(e){
+    if(!dragQ)return;
+    e.preventDefault();
+    /* тот же эффект, что задан при старте: несовпадение браузер отклоняет */
+    try{e.dataTransfer.dropEffect='move'}catch(x){}
+    this.classList.add('dropto');
+  });
+  $('#aucform').addEventListener('dragleave',function(e){
+    if(!this.contains(e.relatedTarget))this.classList.remove('dropto');
+  });
+  $('#aucform').addEventListener('drop',function(e){
+    if(!dragQ)return;
+    e.preventDefault();
+    var id=dragQ;
+    clearDrop();
+    dropToNew(id);
+  });
 
   /* --- панель управления колесом --- */
   function wheelPanel(){
