@@ -320,6 +320,10 @@
   .bxh2{font-size:10px;text-transform:uppercase;letter-spacing:.17em;color:var(--dim)}
   .connhead .chip{margin-left:auto;padding:5px 9px;font-size:11px}
   .conndetail{margin-top:12px}
+  .conndetail .chip.toggle{font-size:13px;padding:7px 12px;gap:7px}
+  .conndetail .chip .mini{width:60px;padding:5px 6px;font-size:16px;font-weight:700;
+    color:var(--gold2);border-color:var(--edge3)}
+  .conndetail .arr{font-size:15px;color:var(--muted)}
   .conn .connnote{margin-top:10px}
   .connst{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--dim);font-weight:400}
   .connst.live{color:var(--gold)}
@@ -684,7 +688,7 @@
     <button class="btn ghost editor-only" id="open-import">Импорт из Discord</button>
     <button class="btn ghost editor-only" id="open-theme">Цвет</button>
     <button class="btn ghost editor-only" id="export">Скачать копию</button>
-    <span class="build" id="build">сборка 25 · 06.11</span>
+    <span class="build" id="build">сборка 27 · 06.11</span>
     <span class="who" id="who"><button class="linkbtn" id="login-link">Вход для редакторов</button></span>
   </div>
 </div>
@@ -1412,11 +1416,26 @@
   }
   function alivePool(){return pool||lots}
 
-  /* веса сегментов: обычное колесо — по ставке, выбывание — обратно ставке */
+  /* Вес выбывания: (1 - доля) / (число лотов - 1).
+     Это не просто «чем меньше ставка, тем больше сектор». При последовательном
+     выбывании по этой формуле шанс победить выходит РОВНО равным доле в банке —
+     проверено точным перебором всех порядков, отклонение ноль. Наивное
+     «обратно ставке» (1/ставка) той же точности не даёт и обделяет мелкие лоты.
+     Та же формула применяется в Pointauc. */
+  function dropWeights(list){
+    var t=sum(list), n=Math.max(list.length,2);
+    if(!t)return list.map(function(){return 1});
+    var w=list.map(function(l){
+      var v=(1-l.sum/t)/(n-1);
+      return (isFinite(v)&&v>0)?v:0;
+    });
+    var s=w.reduce(function(a,b){return a+b},0);
+    return s>0?w:list.map(function(){return 1});
+  }
+  /* веса сегментов: обычное колесо — по ставке, выбывание — по шансу вылететь */
   function weights(list){
     if(cfg.format==='normal')return list.map(function(l){return l.sum});
-    var t=sum(list);
-    return list.map(function(l){return t/Math.max(l.sum,1e-9)});
+    return dropWeights(list);
   }
 
   /* --- отрисовка --- */
@@ -1587,30 +1606,35 @@
     var base=list.slice().sort(function(a,b){
       return b.sum-a.sum||a.title.localeCompare(b.title,'ru');
     });
-    var order=[];
+    var order=[], draws=0;
     if(cfg.dropout==='classic'){
-      var keys=[],chain=Promise.resolve();
-      base.forEach(function(l){
-        chain=chain.then(next).then(function(u){
-          if(u<=0)u=1e-12;
-          keys.push({id:l.id,T:-Math.log(u)/Math.max(l.sum,1e-9)});
+      var rest0=base.slice();
+      var stepFn=function(){
+        if(rest0.length<=1){
+          if(rest0.length)order.push(rest0[0].id);
+          return Promise.resolve();
+        }
+        return next().then(function(u){
+          draws++;
+          var i=pickBy(rest0,dropWeights(rest0),u);
+          order.push(rest0[i].id);rest0.splice(i,1);
+          return stepFn();
         });
-      });
-      return chain.then(function(){
-        keys.sort(function(a,b){return b.T-a.T});
-        return {order:keys.map(function(k){return k.id}),step:0};
-      });
+      };
+      return stepFn().then(function(){return {order:order,step:0,draws:draws}});
     }
     // симуляция: победитель определён сразу по ставкам, остальные выбывают
     // от мелких к крупным — напряжение растёт к финалу
     var rest=base.slice(),champ=null;
     return next().then(function(r){
+      draws++;
       champ=rest[pickBy(rest,rest.map(function(l){return l.sum}),r)];
       rest=rest.filter(function(l){return l.id!==champ.id});
       var chain=Promise.resolve();
       var stepFn=function(){
         if(!rest.length)return Promise.resolve();
         return next().then(function(r2){
+          draws++;
           var w=rest.map(function(l){return 1/Math.max(l.sum,1e-9)});
           var i=pickBy(rest,w,r2);
           order.push(rest[i].id);rest.splice(i,1);
@@ -1620,7 +1644,7 @@
       return chain.then(stepFn);
     }).then(function(){
       order.push(champ.id);
-      return {order:order,step:0};
+      return {order:order,step:0,draws:draws};
     });
   }
 
@@ -1666,7 +1690,7 @@
     var ready;
     if(cfg.format!=='normal'){
       ready=plan?Promise.resolve(plan):makePlan(lots,next).then(function(pl){
-        pl.used=lots.length+2;plan=pl;return pl;
+        pl.used=(pl.draws||lots.length)+2;plan=pl;return pl;
       });
     }else{
       ready=next().then(function(r){return {single:list[pickBy(list,w,r)]}});
@@ -2205,6 +2229,43 @@
   var daSeenIds=[];
 
   function daProxyUrl(){return (SUPABASE_URL||'')+'/functions/v1/da-proxy'}
+
+  /* Курсы валют к рублю: сколько рублей стоит одна единица.
+     Берём у посредника (он спрашивает ЦБ РФ), держим в памяти браузера
+     и обновляем раз в шесть часов. Донат в чужой валюте пересчитываем
+     по ним прямо в момент прихода — ждать запроса некогда. */
+  var rates=null, ratesAt=0, ratesBusy=false;
+  function ratesLoad(){
+    try{
+      var v=JSON.parse(ls('kino-rates')||'null');
+      if(v&&v.rates&&v.rates.USD){rates=v.rates;ratesAt=v.at||0}
+    }catch(e){}
+  }
+  function ratesRefresh(force){
+    if(ratesBusy)return Promise.resolve(rates);
+    if(!force&&rates&&(Date.now()-ratesAt)<6*3600*1000)return Promise.resolve(rates);
+    if(!SUPABASE_URL)return Promise.resolve(rates);
+    ratesBusy=true;
+    return fetch(daProxyUrl(),{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPABASE_KEY,
+               'Authorization':'Bearer '+SUPABASE_KEY},
+      body:JSON.stringify({action:'rates'})
+    }).then(function(r){return r.json()}).then(function(j){
+      if(!j||!j.rates||!j.rates.USD)throw new Error('нет курсов');
+      rates=j.rates;ratesAt=Date.now();
+      try{ls('kino-rates',JSON.stringify({rates:rates,at:ratesAt}))}catch(e){}
+      return rates;
+    }).catch(function(){return rates}).then(function(r){ratesBusy=false;return r});
+  }
+  /* перевод в рубли; если курса нет — оставляем как есть и помечаем */
+  function toRub(amount,cur){
+    cur=String(cur||'RUB').toUpperCase();
+    if(cur==='RUB'||cur==='RUR'||!cur)return {sum:amount,cur:'RUB',known:true};
+    var k=rates&&rates[cur];
+    if(!k){ratesRefresh(true);return {sum:amount,cur:cur,known:false}}
+    return {sum:amount*k,cur:cur,known:true};
+  }
   function daSave(){
     try{ls('kino-da',JSON.stringify({token:da.token,user:da.user}))}catch(e){}
   }
@@ -2356,11 +2417,21 @@
     var amount=parseFloat(d.amount);
     if(!(amount>0))amount=parseFloat(d.amount_in_user_currency);
     if(!(amount>0))return;
-    var cost=Math.round(amount*rateOf('da'));
+    var cur=String(d.currency||'RUB').toUpperCase();
+    var conv=toRub(amount,cur);
+    var cost=Math.round(conv.sum*rateOf('da'));
     if(!cost)return;
-    var cur=String(d.currency||'').toUpperCase();
-    addBid(d.username||'аноним',(d.message||'').trim(),cost,
-           (cur&&cur!=='RUB')?('донат '+cur):'донат');
+    var src='донат';
+    if(cur!=='RUB'&&cur!=='RUR')
+      src=conv.known?('донат '+trimNum(amount)+' '+cur)
+                    :('донат '+trimNum(amount)+' '+cur+' — курс неизвестен');
+    addBid(d.username||'аноним',(d.message||'').trim(),cost,src);
+    if(cur!=='RUB'&&cur!=='RUR'&&!conv.known)
+      flash('Курс '+cur+' не найден — сумма взята как есть, проверьте вручную');
+  }
+  function trimNum(x){
+    var s=(Math.round(x*100)/100).toString();
+    return s.replace('.',',');
   }
 
   $('#da-connect').addEventListener('click',function(){
@@ -2826,11 +2897,11 @@
   /* Аукцион поднимаем отдельно и под защитой: если в нём что-то сломается
      на чьём-то браузере, список фильмов всё равно должен загрузиться. */
   try{
-    aucLoad();migrateRates();qLoad();twLoad();daLoad();
+    aucLoad();migrateRates();qLoad();twLoad();daLoad();ratesLoad();
     var justLoggedIn=catchOAuth();
     renderConn();renderQueue();
     if(tw.token)twStart();
-    if(da.token)daStart();
+    if(da.token){daStart();ratesRefresh()}
     if(justLoggedIn&&!document.body.classList.contains('auc-view')){
       document.body.classList.add('auc-view');$('#viewtoggle').textContent='Films';
     }
